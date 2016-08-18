@@ -9,7 +9,7 @@ public class DLA {
    * aggregate variables that are useful in general.
    */
   private int nNodes;
-  private double maxRadius;
+  private double aggregateRadius; // the maximum distance of any aggregated particle from the origin
   private List<Node> nodeList = new ArrayList<Node>();
 
   /* 
@@ -40,7 +40,9 @@ public class DLA {
     // can change the seed if want. 
     Node seed = new Node(0,0,particleRadius);
     nodeList.add(seed);
+    aggregateRadius = 0;
     rgen.setSeed(1);
+
   }
 
   private void simulate() {
@@ -57,7 +59,7 @@ public class DLA {
   private Node introduceDiffuser() { 
     if (debugOn) System.out.print("introduceDiffuser\n");
     // should introduce particle as near as possible to the aggregate.
-    double R = startRadius;
+    double R = aggregateRadius + 2 * particleRadius; // close as possible without risking ;w
     double angle = rgen.nextDouble(0,2*Math.PI);
     // System.out.print("particle introduced");
     return new Node(R * Math.cos(angle), R * Math.sin(angle), particleRadius);
@@ -110,6 +112,9 @@ public class DLA {
     sticker.addNeighbor(diffuser);
     diffuser.addNeighbor(sticker);
     nodeList.add(diffuser);
+    if (diffuser.getDistanceFromOrigin() > aggregateRadius) {
+      aggregateRadius = diffuser.getDistanceFromOrigin();
+    }
   }
 
   private double getSquareDistanceBetween(Node node1, Node node2) {
@@ -118,7 +123,7 @@ public class DLA {
 
   private boolean particleOutOfBounds(Node diffuser) {
     if (debugOn) System.out.print("particleOutOfBounds \n");
-    return (diffuser.distanceFromOrigin() > killRadius);
+    return (diffuser.getDistanceFromOrigin() > killRadius);
   }
 
   private boolean hasParticleHit(double radius) { 

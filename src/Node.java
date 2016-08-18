@@ -36,7 +36,7 @@ public class Node implements java.io.Serializable{
     return radius ;
   }
 
-  public double distanceFromOrigin() {
+  public double getDistanceFromOrigin() {
     return Math.sqrt(Math.pow(x,2) + Math.pow(y,2));
   }
 

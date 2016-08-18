@@ -4,27 +4,42 @@ import java.util.*;
 import java.io.*;
 
 public class DLA { 
-  private static final int nNodes = (int) Math.pow(10,6);
+
+  /*
+   * aggregate variables that are useful in general.
+   */
+  private int nNodes;
+  private double maxRadius;
+  private List<Node> nodeList = new ArrayList<Node>();
+
+  /* 
+   * variables that are useful only in simulation. 
+   */
   private static final double startRadius = 10;
-  private static final RandomGenerator rgen = new RandomGenerator();
   private static final double particleRadius = 1;
   private static final double snapDistance = .01;
   private static final double killRadius = Integer.MAX_VALUE;
+
+  /*
+   * Random generator.
+   */
+  private static final RandomGenerator rgen = new RandomGenerator();
+
   private static final boolean debugOn = false;
 
-  private ArrayList<Node> aggregate = new ArrayList<Node>();
-
-  public static void main(String[] args) {
-    DLA dla = new DLA();
-    dla.initialize();
-    dla.simulate();
-    dla.saveData();
+  /*
+   * Construct a DLA aggregate with nNodes 
+   */
+  public DLA(int nNodes) {
+    this.nNodes = nNodes;
+    initialize();
+    simulate();
   }
 
   public void initialize() {
     // can change the seed if want. 
     Node seed = new Node(0,0,particleRadius);
-    aggregate.add(seed);
+    nodeList.add(seed);
     rgen.setSeed(1);
   }
 
@@ -36,15 +51,7 @@ public class DLA {
       Node sticker = diffuseUntilHit(diffuser);
       if (debugOn) System.out.print("diffuser position" + diffuser.getX() + "  " + diffuser.getY());
       attach(diffuser, sticker);
-//      gatherData();
     }
-    if (debugOn) radiiList();
-  }
-  
-  private void radiiList() { 
-    for (Node node : aggregate) 
-      //print radii of vxs for debug
-      System.out.print("\n" + (Math.pow(node.getX(),2) + Math.pow(node.getY(),2)));
   }
   
   private Node introduceDiffuser() { 
@@ -58,25 +65,21 @@ public class DLA {
 
   private Node diffuseUntilHit(Node diffuser) { 
     if (debugOn) System.out.print("diffuseUntilHit\n");
-    double radius = getNextJumpRadius(diffuser);
     // System.out.print("particle jumping");
     // reintroduce a particle if out of bounds.
-    //
-    while (!hasParticleHit(radius)) { 
-      makeJump(diffuser, radius);
+    tuple <Double, Node> distanceNodePair = getDistanceNodePair(diffuser);
+    double distance = distanceNodePair.first.doubleValue();
+    while (true) { 
+      makeJump(diffuser, distance);
       if (particleOutOfBounds(diffuser)) { 
         diffuser = introduceDiffuser();
       }
-      radius = getNextJumpRadius(diffuser);
+      distanceNodePair = getDistanceNodePair(diffuser);
+      distance = distanceNodePair.first.doubleValue();
+      if (hasParticleHit(distance)) break;
     }
-    Node sticker = diffuser.getClosestNodeInAggregate(aggregate);
+    Node sticker = distanceNodePair.second;
     return sticker;
-    // System.out.print("particle attached");
-  }
-
-  private boolean particleOutOfBounds(Node diffuser) {
-    if (debugOn) System.out.print("particleOutOfBounds \n");
-    return (diffuser.distanceFromOrigin() > killRadius);
   }
 
   private void makeJump(Node diffuser, double radius) { 
@@ -85,47 +88,65 @@ public class DLA {
     diffuser.move(radius * Math.cos(angle), radius * Math.sin(angle));
   }
 
-  private boolean hasParticleHit(double radius) { 
-    if (debugOn) System.out.print("hasParticleHit\n");
-    return (radius < snapDistance);
-  }
-
-  private double getNextJumpRadius(Node diffuser) { 
+  private tuple<Double, Node> getDistanceNodePair(Node diffuser) {
     if (debugOn) System.out.print("getNextJumpRadius\n");
-    Node minNode = diffuser.getClosestNodeInAggregate(aggregate);
-    double radius = Math.sqrt(diffuser.getSquareDistanceTo(minNode)) - 
-      diffuser.getRadius() - minNode.getRadius();
-    return radius;
+    Node closestNode = nodeList.get(0);
+    double squareDistance = getSquareDistanceBetween(closestNode, diffuser);
+    for (Node node : nodeList) { 
+      if (getSquareDistanceBetween(node, diffuser) < squareDistance) {
+        closestNode = node;
+        squareDistance = getSquareDistanceBetween(node, diffuser);
+      }
+    } 
+    double distance = Math.sqrt(squareDistance) - 
+      diffuser.getRadius() - closestNode.getRadius();
+    return new tuple <Double, Node> (distance, closestNode);
   }
 
   private void attach(Node diffuser, Node sticker) {
     if (debugOn) System.out.print("attach\n");
     System.out.print(diffuser.toString() + " attaching to " +  sticker.toString() + "\n");
-    diffuser.snapTo(sticker);
+    snapTo(diffuser, sticker);
     sticker.addNeighbor(diffuser);
     diffuser.addNeighbor(sticker);
-    aggregate.add(diffuser);
-  }
-  private void gatherData() { 
-    int n = aggregate.size();
-    double[] xPositions = new double[n];
-    double[] yPositions = new double[n];
-    for (int i = 0; i < n; i++) {
-      xPositions[i] = aggregate.get(i).getX();
-      yPositions[i] = aggregate.get(i).getY();
-    }
+    nodeList.add(diffuser);
   }
 
-  private void saveData() {
-    try { 
-      FileOutputStream fileOut = new FileOutputStream("../data/hey.ser");
-      ObjectOutputStream out = new ObjectOutputStream(fileOut);
-      out.writeObject(aggregate);
-      out.close();
-      fileOut.close();
-    }
-    catch (IOException e) { 
-      e.printStackTrace();
-    }
+  private double getSquareDistanceBetween(Node node1, Node node2) {
+    return  Math.pow(node1.getX() - node2.getX(),2) + Math.pow(node1.getY() - node2.getY(),2);
   }
+
+  private boolean particleOutOfBounds(Node diffuser) {
+    if (debugOn) System.out.print("particleOutOfBounds \n");
+    return (diffuser.distanceFromOrigin() > killRadius);
+  }
+
+  private boolean hasParticleHit(double radius) { 
+    if (debugOn) System.out.print("hasParticleHit\n");
+    return (radius < snapDistance);
+  }
+
+  private void snapTo(Node diffuser, Node sticker) {
+    double difX = diffuser.getX() - sticker.getX();
+    double difY = diffuser.getY() - sticker.getY();
+    double distance = getSquareDistanceBetween(diffuser, sticker);
+    double newDistance = diffuser.getRadius() + sticker.getRadius();
+    double x = (1 - newDistance/distance) * difX; 
+    double y = (1 - newDistance/distance) * difY; 
+    diffuser.move(x,y);
+  }
+
+//  private void saveData() {
+//    try { 
+//      FileOutputStream fileOut = new FileOutputStream("../data/hey.ser");
+//      ObjectOutputStream out = new ObjectOutputStream(fileOut);
+//      out.writeObject(nodeList);
+//      out.close();
+//      fileOut.close();
+//    }
+//    catch (IOException e) { 
+//      e.printStackTrace();
+//    }
+//  }
+
 }

@@ -1,7 +1,21 @@
+package DLA;
+
 import java.lang.Math.*;
 import acm.util.*;
 import java.util.*;
 import java.io.*;
+import javax.swing.SwingUtilities;
+import javax.swing.JFrame;
+import javax.swing.JPanel;
+import javax.swing.BorderFactory;
+import java.awt.Color;
+import java.awt.Dimension;
+import java.awt.Graphics; 
+import java.awt.event.MouseEvent;
+import java.awt.event.MouseListener;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseMotionListener;
+import java.awt.event.MouseMotionAdapter;
 
 public class DLA { 
 
@@ -16,7 +30,7 @@ public class DLA {
    * variables that are useful only in simulation. 
    */
   private static final double startRadius = 10;
-  private static final double particleRadius = 1;
+  private static final double particleRadius = 10;
   private static final double snapDistance = .01;
   private static final double killRadius = Integer.MAX_VALUE;
 
@@ -26,12 +40,15 @@ public class DLA {
   private static final RandomGenerator rgen = new RandomGenerator();
 
   private static final boolean debugOn = false;
+  private boolean animateOn;
+  private static MyPanel thePanel;
 
   /*
    * Construct a DLA aggregate with nNodes 
    */
-  public DLA(int nNodes) {
+  public DLA(int nNodes, boolean animateOn) {
     this.nNodes = nNodes;
+    this.animateOn = animateOn;
     initialize();
     simulate();
   }
@@ -40,9 +57,23 @@ public class DLA {
     // can change the seed if want. 
     Node seed = new Node(0,0,particleRadius);
     nodeList.add(seed);
+    if (animateOn) { 
+      createAndShowGUI();
+      thePanel.updateNodeList(nodeList);
+    }
     aggregateRadius = 0;
     rgen.setSeed(1);
 
+
+  }
+  private static void createAndShowGUI(){
+        JFrame f = new JFrame("DLA");
+        f.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE); 
+        thePanel = new MyPanel();
+        f.add(thePanel);
+        f.pack();
+        f.setLocationRelativeTo(null);
+        f.setVisible(true);
   }
 
   private void simulate() {
@@ -62,7 +93,11 @@ public class DLA {
     double R = aggregateRadius + 2 * particleRadius; // close as possible without risking ;w
     double angle = rgen.nextDouble(0,2*Math.PI);
     // System.out.print("particle introduced");
-    return new Node(R * Math.cos(angle), R * Math.sin(angle), particleRadius);
+    Node diffuser = new Node(R * Math.cos(angle), R * Math.sin(angle), particleRadius);
+    if (animateOn) {
+      thePanel.setDiffuser(diffuser);
+    }
+    return diffuser;
   }
 
   private Node diffuseUntilHit(Node diffuser) { 
@@ -87,7 +122,11 @@ public class DLA {
   private void makeJump(Node diffuser, double radius) { 
     if (debugOn) System.out.print("makeJump\n");
     double angle = rgen.nextDouble(0,2*Math.PI);
+    double oldX = diffuser.getX();
+    double oldY = diffuser.getY();
     diffuser.move(radius * Math.cos(angle), radius * Math.sin(angle));
+    thePanel.moveNode(oldX, oldY, diffuser.getX(), diffuser.getY());
+      
   }
 
   private tuple<Double, Node> getDistanceNodePair(Node diffuser) {
@@ -112,6 +151,10 @@ public class DLA {
     sticker.addNeighbor(diffuser);
     diffuser.addNeighbor(sticker);
     nodeList.add(diffuser);
+    if (animateOn) {
+      System.out.print("here\n");
+      thePanel.updateNodeList(nodeList);
+    }
     if (diffuser.getDistanceFromOrigin() > aggregateRadius) {
       aggregateRadius = diffuser.getDistanceFromOrigin();
     }

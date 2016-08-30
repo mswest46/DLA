@@ -1,5 +1,9 @@
+package DLA;
+
 import java.util.*;
 import acm.util.*;
+import java.awt.Color;
+import java.awt.Graphics;
 
 public class Node implements java.io.Serializable{
 
@@ -46,6 +50,12 @@ public class Node implements java.io.Serializable{
 
   public void addNeighbor(Node node) { 
     neighbors.add(node);
+  }
+
+  public void paintNode(Graphics g, Color color) {
+    g.setColor(color);
+    g.fillOval((int) x, (int) y, 2* (int) radius, 2* (int) radius);
+    g.drawOval((int) x, (int) y, 2* (int) radius, 2* (int) radius);
   }
 
   private double radius;

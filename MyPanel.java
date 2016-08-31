@@ -33,7 +33,6 @@ class MyPanel extends JPanel {
     repaint();
   }
   public void paintComponent(Graphics g) {
-    System.out.print("here\n");
     super.paintComponent(g);
     Color color = Color.BLACK;
     for (Node node: nodeList) { 

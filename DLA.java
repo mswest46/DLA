@@ -16,6 +16,7 @@ import java.awt.event.MouseListener;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseMotionListener;
 import java.awt.event.MouseMotionAdapter;
+import java.lang.Thread;
 
 public class DLA { 
 
@@ -150,9 +151,13 @@ public class DLA {
     snapTo(diffuser, sticker);
     sticker.addNeighbor(diffuser);
     diffuser.addNeighbor(sticker);
+    try {
+      Thread.sleep(1000);
+    } catch (Exception e) {
+      System.out.print(e);
+    }
     nodeList.add(diffuser);
     if (animateOn) {
-      System.out.print("here\n");
       thePanel.updateNodeList(nodeList);
     }
     if (diffuser.getDistanceFromOrigin() > aggregateRadius) {

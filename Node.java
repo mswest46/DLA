@@ -52,10 +52,10 @@ public class Node implements java.io.Serializable{
     neighbors.add(node);
   }
 
-  public void paintNode(Graphics g, Color color) {
+  public void paintNode(Graphics g, Color color, int offsetWide, int offsetTall) {
     g.setColor(color);
-    g.fillOval((int) x, (int) y, 2* (int) radius, 2* (int) radius);
-    g.drawOval((int) x, (int) y, 2* (int) radius, 2* (int) radius);
+    g.fillOval((int) x + offsetWide, (int) y + offsetTall, 2* (int) radius, 2* (int) radius);
+    g.drawOval((int) x + offsetWide, (int) y + offsetTall, 2* (int) radius, 2* (int) radius);
   }
 
   private double radius;

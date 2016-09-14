@@ -30,8 +30,9 @@ public class DLA {
   /* 
    * variables that are useful only in simulation. 
    */
+  private static final int PAUSE_TIME = 50;
   private static final double startRadius = 10;
-  private static final double particleRadius = 10;
+  private static final double particleRadius = 1;
   private static final double snapDistance = .01;
   private static final double killRadius = Integer.MAX_VALUE;
 
@@ -83,9 +84,10 @@ public class DLA {
       if (debugOn) System.out.print("\n particle" + i);
       Node diffuser = introduceDiffuser();
       Node sticker = diffuseUntilHit(diffuser);
-      if (debugOn) System.out.print("diffuser position" + diffuser.getX() + "  " + diffuser.getY());
       attach(diffuser, sticker);
+      System.out.print("Node number " + (i+1) + " attached.\n");
     }
+    System.out.print("\nDUNZO");
   }
   
   private Node introduceDiffuser() { 
@@ -126,35 +128,47 @@ public class DLA {
     double oldX = diffuser.getX();
     double oldY = diffuser.getY();
     diffuser.move(radius * Math.cos(angle), radius * Math.sin(angle));
-    thePanel.moveNode(oldX, oldY, diffuser.getX(), diffuser.getY());
+    if (animateOn) {
+      try {
+        Thread.sleep(PAUSE_TIME);
+      } catch (Exception e) {
+        System.out.print(e);
+      }
+      thePanel.moveNode(oldX, oldY, diffuser.getX(), diffuser.getY());
+    }
       
   }
 
   private tuple<Double, Node> getDistanceNodePair(Node diffuser) {
     if (debugOn) System.out.print("getNextJumpRadius\n");
-    Node closestNode = nodeList.get(0);
-    double squareDistance = getSquareDistanceBetween(closestNode, diffuser);
-    for (Node node : nodeList) { 
-      if (getSquareDistanceBetween(node, diffuser) < squareDistance) {
-        closestNode = node;
-        squareDistance = getSquareDistanceBetween(node, diffuser);
-      }
-    } 
-    double distance = Math.sqrt(squareDistance) - 
-      diffuser.getRadius() - closestNode.getRadius();
+
+    // Node closestNode = nodeList.get(0);
+    // double squareDistance = getSquareDistanceBetween(closestNode, diffuser);
+    // for (Node node : nodeList) { 
+    //   if (getSquareDistanceBetween(node, diffuser) < squareDistance) {
+    //     closestNode = node;
+    //     squareDistance = getSquareDistanceBetween(node, diffuser);
+    //   }
+    // } 
+    // double distance = Math.sqrt(squareDistance) - 
+    //   diffuser.getRadius() - closestNode.getRadius();
     return new tuple <Double, Node> (distance, closestNode);
   }
 
   private void attach(Node diffuser, Node sticker) {
-    if (debugOn) System.out.print("attach\n");
-    System.out.print(diffuser.toString() + " attaching to " +  sticker.toString() + "\n");
-    snapTo(diffuser, sticker);
+    if (debugOn) {
+      System.out.print("attach\n");
+      System.out.print(diffuser.toString() + " attaching to " +  sticker.toString() + "\n");
+    }
+    //snapTo(diffuser, sticker);
     sticker.addNeighbor(diffuser);
     diffuser.addNeighbor(sticker);
-    try {
-      Thread.sleep(1000);
-    } catch (Exception e) {
-      System.out.print(e);
+    if (animateOn) {
+      try {
+        Thread.sleep(PAUSE_TIME);
+      } catch (Exception e) {
+        System.out.print(e);
+      }
     }
     nodeList.add(diffuser);
     if (animateOn) {

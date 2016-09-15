@@ -4,15 +4,24 @@ import java.util.*;
 import acm.util.*;
 import java.awt.Color;
 import java.awt.Graphics;
+import quadtree.*;
 
 public class Node implements java.io.Serializable{
 
   private static final boolean debugOn = true;
   private static final long serialVersionUID = 1;
 
+
+
   public Node(double x,double y) {
     this.x = x;
     this.y = y;
+  }
+
+  public Point<Node> toPoint() { 
+    Point<Node> point = new Point<Node>(x,y);
+    point.setData(this);
+    return point;
   }
   /*
    * initializes node with position and radius. 

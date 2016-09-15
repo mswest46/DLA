@@ -17,6 +17,7 @@ import java.awt.event.MouseAdapter;
 import java.awt.event.MouseMotionListener;
 import java.awt.event.MouseMotionAdapter;
 import java.lang.Thread;
+import quadtree.*;
 
 public class DLA { 
 
@@ -26,6 +27,7 @@ public class DLA {
   private int nNodes;
   private double aggregateRadius; // the maximum distance of any aggregated particle from the origin
   private List<Node> nodeList = new ArrayList<Node>();
+  private Quadtree<Node> qt;
 
   /* 
    * variables that are useful only in simulation. 
@@ -35,6 +37,14 @@ public class DLA {
   private static final double particleRadius = 1;
   private static final double snapDistance = .01;
   private static final double killRadius = Integer.MAX_VALUE;
+
+  /*
+   *
+   */
+  private double X_MIN = -10;
+  private double Y_MIN = 10;
+  private double AGG_WIDTH = 20;
+  private double AGG_HEIGHT = 20;
 
   /*
    * Random generator.
@@ -59,6 +69,8 @@ public class DLA {
     // can change the seed if want. 
     Node seed = new Node(0,0,particleRadius);
     nodeList.add(seed);
+    qt = new Quadtree<Node> (5, X_MIN, Y_MIN, AGG_WIDTH, AGG_HEIGHT);
+    qt.insert(seed.toPoint());
     if (animateOn) { 
       createAndShowGUI();
       thePanel.updateNodeList(nodeList);
@@ -105,21 +117,22 @@ public class DLA {
 
   private Node diffuseUntilHit(Node diffuser) { 
     if (debugOn) System.out.print("diffuseUntilHit\n");
-    // System.out.print("particle jumping");
     // reintroduce a particle if out of bounds.
-    tuple <Double, Node> distanceNodePair = getDistanceNodePair(diffuser);
-    double distance = distanceNodePair.first.doubleValue();
-    while (true) { 
-      makeJump(diffuser, distance);
-      if (particleOutOfBounds(diffuser)) { 
-        diffuser = introduceDiffuser();
-      }
-      distanceNodePair = getDistanceNodePair(diffuser);
-      distance = distanceNodePair.first.doubleValue();
-      if (hasParticleHit(distance)) break;
-    }
-    Node sticker = distanceNodePair.second;
-    return sticker;
+    
+
+     PointDistancePair<Node> distanceNodePair = getDistanceNodePair(diffuser);
+     double distance = distanceNodePair.getDistance();
+     while (true) { 
+       makeJump(diffuser, distance);
+       if (particleOutOfBounds(diffuser)) { 
+         diffuser = introduceDiffuser();
+       }
+       distanceNodePair = getDistanceNodePair(diffuser);
+       distance = distanceNodePair.getDistance();
+       if (hasParticleHit(distance)) break;
+     }
+     Node sticker = distanceNodePair.getPoint().data;
+     return sticker;
   }
 
   private void makeJump(Node diffuser, double radius) { 
@@ -139,8 +152,10 @@ public class DLA {
       
   }
 
-  private tuple<Double, Node> getDistanceNodePair(Node diffuser) {
+  private PointDistancePair<Node> getDistanceNodePair(Node diffuser) {
     if (debugOn) System.out.print("getNextJumpRadius\n");
+
+    return qt.closestPointDistancePair(diffuser.toPoint());
 
     // Node closestNode = nodeList.get(0);
     // double squareDistance = getSquareDistanceBetween(closestNode, diffuser);
@@ -152,7 +167,6 @@ public class DLA {
     // } 
     // double distance = Math.sqrt(squareDistance) - 
     //   diffuser.getRadius() - closestNode.getRadius();
-    return new tuple <Double, Node> (distance, closestNode);
   }
 
   private void attach(Node diffuser, Node sticker) {
@@ -171,9 +185,12 @@ public class DLA {
       }
     }
     nodeList.add(diffuser);
+    qt.insert(diffuser.toPoint());
     if (animateOn) {
       thePanel.updateNodeList(nodeList);
     }
+
+    // update aggregate radius if it has grown. 
     if (diffuser.getDistanceFromOrigin() > aggregateRadius) {
       aggregateRadius = diffuser.getDistanceFromOrigin();
     }

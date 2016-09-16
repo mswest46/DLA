@@ -19,29 +19,29 @@ class MyPanel extends JPanel {
 
   private static final int PANEL_WIDTH = 1000;
   private static final int PANEL_HEIGHT= 1000;
-  private List<Node> nodeList;
-  private Node diffuser;
-  private Node nearestNode;
-  public void setDiffuser(Node diffuser) {
+  private List<Particle> particleList;
+  private Particle diffuser;
+  private Particle nearestNode;
+  public void setDiffuser(Particle diffuser) {
     this.diffuser = diffuser;
   }
-  public void setNearestNode(Node nearestNode) {
+  public void setNearestNode(Particle nearestNode) {
     this.nearestNode = nearestNode;
   }
-  public void updateNodeList(List<Node> nodeList) {
-    this.nodeList = nodeList;
+  public void updateParticleList(List<Particle > particleList) {
+    this.particleList = particleList;
   }
   public Dimension getPreferredSize() {
     return new Dimension(PANEL_WIDTH,PANEL_HEIGHT);
   } 
-  public void moveNode(double oldX, double oldY, double newX, double newY){
+  public void moveParticle(double oldX, double oldY, double newX, double newY){
     // clipping todo.
     repaint();
   }
   public void paintComponent(Graphics g) {
     super.paintComponent(g);
     Color color = Color.BLACK;
-    for (Node node: nodeList) { 
+    for (Particle node: particleList) { 
       node.paintNode(g, color, PANEL_WIDTH/2, PANEL_WIDTH/2);
     }
     color = Color.RED;

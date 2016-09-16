@@ -114,6 +114,12 @@ public class DLA {
     }
     return diffuser;
   }
+  private void replaceDiffuser(Node diffuser) {
+    double R = aggregateRadius + 2 * particleRadius; // close as possible without risking ;w
+    double angle = rgen.nextDouble(0,2*Math.PI);
+    diffuser.setLocation(R * Math.cos(angle), R * Math.sin(angle));
+  }
+
 
   private Node diffuseUntilHit(Node diffuser) { 
     if (debugOn) System.out.print("diffuseUntilHit\n");
@@ -128,7 +134,8 @@ public class DLA {
      while (true) { 
        makeJump(diffuser, distance);
        if (particleOutOfBounds(diffuser)) { 
-         diffuser = introduceDiffuser();
+         // really shitty. change up. just seeing if it works. 
+         replaceDiffuser(diffuser);
        }
        distanceNodePair = getDistanceNodePair(diffuser);
        distance = distanceNodePair.getDistance();

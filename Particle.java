@@ -21,6 +21,10 @@ public class Particle extends Point {
     this.radius = radius;
   }
 
+  public double getRadius() {
+    return radius;
+  }
+
   /*
    * moves this particle addX and addY in x and y directions respectively. 
    * @param addX    moves this point addX in x direction. 

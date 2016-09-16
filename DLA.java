@@ -22,13 +22,13 @@ public class DLA {
   private static final double killRadius = Integer.MAX_VALUE; // when particle floats killRadius apart, we replace it with a new particle. 
   private static final boolean debugOn = false; // debug switch
 
-  //instance vars. TODO: diffuser
   private int nParticles; // how many particles in the simulation. 
   private double aggregateRadius; // the maximum distance of any aggregated particle from the origin. 
   private List<Particle> particleList = new ArrayList<Particle>(); // a list of the particles in the aggregate. 
   private Quadtree qt; // quadtree for searching for nearest aggregate particle.
   private static final RandomGenerator rgen = new RandomGenerator(); // makes the randoms. 
   private int particleNumber = 0; // counts how many particles have attached. 
+  private Particle diffuser; // the diffusing particle
 
   // animation stuff. 
   private boolean animateOn; // animation switch 
@@ -93,8 +93,8 @@ public class DLA {
   private void simulate() {
     for (int i = 0; i < nParticles; i++) {
       particleNumber++;
-      Particle diffuser = introduceDiffuser();
-      Particle sticker = diffuseUntilHit(diffuser);
+      introduceDiffuser();
+      Particle sticker = diffuseUntilHit();
       attach(diffuser, sticker);
       System.out.print("Particle number " + particleNumber + " attached.\n");
     }
@@ -106,24 +106,13 @@ public class DLA {
    * introduces a diffusing particle at a random angle at a distance as close as possible to the aggregate without risking appearing on it. 
    * @return  the diffusing particle.
    */
-  private Particle introduceDiffuser() { 
+  private void introduceDiffuser() { 
     double R = aggregateRadius + 2 * particleRadius; // close as possible without risking overlap 
     double angle = rgen.nextDouble(0,2*Math.PI);
-    Particle diffuser = new Particle(R * Math.cos(angle), R * Math.sin(angle), particleRadius);
+    diffuser = new Particle(R * Math.cos(angle), R * Math.sin(angle), particleRadius);
     if (animateOn) {
       thePanel.setDiffuser(diffuser);
     }
-    return diffuser;
-  }
-
-  /*
-   * takes the existing diffuser and moves it to a random angle at a distance as close as possible to the aggreaget without risking appearing on it. 
-   * TODO: there should be a diffusing particle as an instance variable. it is part of the aggreagation simulation. 
-   */
-  private void replaceDiffuser(Particle diffuser) {
-    double R = aggregateRadius + 2 * particleRadius; // close as possible without risking ;w
-    double angle = rgen.nextDouble(0,2*Math.PI);
-    diffuser.setPosition(R * Math.cos(angle), R * Math.sin(angle));
   }
 
   /*
@@ -131,40 +120,39 @@ public class DLA {
    * @param   the diffusing particle. 
    * @return  the particle in the aggregate that the diffuse hits. 
    */
-  private Particle diffuseUntilHit(Particle diffuser) { 
+  private Particle diffuseUntilHit() { 
     
-    // get the closest particle in aggregate. TODO: rename
-    PointDistancePair distanceNodePair = getDistanceNodePair(diffuser);
+    // get the closest particle in aggregate. 
+    PointDistancePair closestParticleAndDistance = closestToDiffuser();
     if (animateOn) {
-      thePanel.setNearestNode((Particle) distanceNodePair.getPoint());
+      thePanel.setNearestNode((Particle)closestParticleAndDistance.getPoint());
     }
     // shrink the distance, accoutngin for particle radii. 
-    double distance = takeParticleSizeIntoAccount(distanceNodePair.getDistance());
+    double distance = takeParticleSizeIntoAccount(closestParticleAndDistance.getDistance());
 
     // jumping loop. 
     while (true) { 
       // make the diffuser jump the distance at a random angle. 
-      makeJump(diffuser, distance);
+      makeJump(distance);
 
       // if the diffuser has strayed beyond the kill radius, replace it with a new particle. 
       // TODO: see if this can just use the distance we already extracted with quadtree, and make the diffuser an instance var. 
       if (particleOutOfBounds(diffuser)) { 
-        // really shitty. change up. just seeing if it works. 
-        replaceDiffuser(diffuser);
+        introduceDiffuser();
       }
 
-      distanceNodePair = getDistanceNodePair(diffuser);
+      closestParticleAndDistance = closestToDiffuser();
       // colors the nearest node blue. 
       if (animateOn) {
-        thePanel.setNearestNode((Particle)distanceNodePair.getPoint());
+        thePanel.setNearestNode((Particle)closestParticleAndDistance.getPoint());
       }
-      distance = takeParticleSizeIntoAccount(distanceNodePair.getDistance());
+      distance = takeParticleSizeIntoAccount(closestParticleAndDistance.getDistance());
 
       // if we hit the aggregate, break
       if (hasParticleHit(distance)) break;
     }
     
-    Particle sticker = (Particle) distanceNodePair.getPoint();
+    Particle sticker = (Particle)closestParticleAndDistance.getPoint();
     return sticker;
   }
 
@@ -181,7 +169,7 @@ public class DLA {
    * @param diffuser   the particle that is diffusing 
    * @param distance   the distance that it should jump
    */
-  private void makeJump(Particle diffuser, double distance) { 
+  private void makeJump(double distance) { 
     if (debugOn) System.out.print("makeJump\n");
     double angle = rgen.nextDouble(0,2*Math.PI);
     double oldX = diffuser.getX();
@@ -194,7 +182,7 @@ public class DLA {
         System.out.print(e);
       }
       // repaints here. 
-      thePanel.moveParticle(oldX, oldY, diffuser.getX(), diffuser.getY());
+      thePanel.moveParticle();
     }
       
   }
@@ -202,13 +190,13 @@ public class DLA {
   /* 
    * gets the closest particle in the aggregate and its distance to the diffuser. 
    * @ param diffuser   the diffusing particle
-   * @returns           the closest particle and its distance in an object. TODO: make position an interface that quadtree handles, and make Particle class implement it. Avoid a lot of this container bullshit. 
+   * @returns           the closest particle and its distance in an object. 
    */
-  private PointDistancePair getDistanceNodePair(Particle diffuser) {
-    if (debugOn) System.out.print("getNextJumpRadius\n");
+  private PointDistancePair closestToDiffuser() {
     PointDistancePair cpdp = qt.closestPointDistancePair(diffuser);
 
     if (cpdp.getDistance() < 2 * particleRadius) {
+      //TODO: why is this happening when I use small particle radius? 
       System.out.println("NOT A REAL EMPTYSTACK I JUST DONT KNOW HOW EXCEPTIONS WORK");
       throw new EmptyStackException();
     }
@@ -242,13 +230,6 @@ public class DLA {
     if (diffuser.distanceFromOrigin() > aggregateRadius) {
       aggregateRadius = diffuser.distanceFromOrigin();
     }
-  }
-
-  /*
-   * TODO: this method should really belong to Particle class. 
-   */
-  private double getSquareDistanceBetween(Particle particle1, Particle particle2) {
-    return  Math.pow(particle2.getX(),2) + Math.pow(particle1.getY() - particle2.getY(),2);
   }
 
   /*

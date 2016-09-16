@@ -34,7 +34,7 @@ class MyPanel extends JPanel {
   public Dimension getPreferredSize() {
     return new Dimension(PANEL_WIDTH,PANEL_HEIGHT);
   } 
-  public void moveParticle(double oldX, double oldY, double newX, double newY){
+  public void moveParticle(){
     // clipping todo.
     repaint();
   }

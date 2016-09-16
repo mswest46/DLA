@@ -32,19 +32,19 @@ public class DLA {
   /* 
    * variables that are useful only in simulation. 
    */
-  private static final int PAUSE_TIME = 50;
+  private static final int PAUSE_TIME = 30;
   private static final double startRadius = 10;
-  private static final double particleRadius = 1;
+  private static final double particleRadius = 10;
   private static final double snapDistance = .01;
   private static final double killRadius = Integer.MAX_VALUE;
 
   /*
    *
    */
-  private double X_MIN = -10;
-  private double Y_MIN = 10;
-  private double AGG_WIDTH = 20;
-  private double AGG_HEIGHT = 20;
+  private double X_MIN = -100000;
+  private double Y_MIN = -100000;
+  private double AGG_WIDTH = 200000;
+  private double AGG_HEIGHT = 200000;
 
   /*
    * Random generator.
@@ -52,6 +52,7 @@ public class DLA {
   private static final RandomGenerator rgen = new RandomGenerator();
 
   private static final boolean debugOn = false;
+  private int nodeNumber = 0;
   private boolean animateOn;
   private static MyPanel thePanel;
 
@@ -94,6 +95,7 @@ public class DLA {
     if (debugOn) System.out.print("simulate\n");
     for (int i = 0; i < nNodes; i++) {
       if (debugOn) System.out.print("\n particle" + i);
+      nodeNumber++;
       Node diffuser = introduceDiffuser();
       Node sticker = diffuseUntilHit(diffuser);
       attach(diffuser, sticker);
@@ -107,7 +109,6 @@ public class DLA {
     // should introduce particle as near as possible to the aggregate.
     double R = aggregateRadius + 2 * particleRadius; // close as possible without risking ;w
     double angle = rgen.nextDouble(0,2*Math.PI);
-    // System.out.print("particle introduced");
     Node diffuser = new Node(R * Math.cos(angle), R * Math.sin(angle), particleRadius);
     if (animateOn) {
       thePanel.setDiffuser(diffuser);
@@ -127,10 +128,11 @@ public class DLA {
     
 
      PointDistancePair<Node> distanceNodePair = getDistanceNodePair(diffuser);
-     double distance = distanceNodePair.getDistance();
      if (animateOn) {
        thePanel.setNearestNode(distanceNodePair.getPoint().data);
      }
+     double distance = takeParticleSizeIntoAccount(distanceNodePair.getDistance());
+
      while (true) { 
        makeJump(diffuser, distance);
        if (particleOutOfBounds(diffuser)) { 
@@ -138,22 +140,34 @@ public class DLA {
          replaceDiffuser(diffuser);
        }
        distanceNodePair = getDistanceNodePair(diffuser);
-       distance = distanceNodePair.getDistance();
        if (animateOn) {
          thePanel.setNearestNode(distanceNodePair.getPoint().data);
        }
+       distance = takeParticleSizeIntoAccount(distanceNodePair.getDistance());
+
        if (hasParticleHit(distance)) break;
      }
      Node sticker = distanceNodePair.getPoint().data;
      return sticker;
   }
 
-  private void makeJump(Node diffuser, double radius) { 
+  /*
+   * takes in the distance between the centers of two nodes and returns the distance between the edges of two nodes. 
+   * TODO: assuming for now that particles have the same radius. Not sure I always will. 
+   */
+  private double takeParticleSizeIntoAccount(double distance) {
+    return distance - 2 * particleRadius;
+  }
+
+  /*
+   * jumps the diffuser in a random direction a distance of distance
+   */
+  private void makeJump(Node diffuser, double distance) { 
     if (debugOn) System.out.print("makeJump\n");
     double angle = rgen.nextDouble(0,2*Math.PI);
     double oldX = diffuser.getX();
     double oldY = diffuser.getY();
-    diffuser.move(radius * Math.cos(angle), radius * Math.sin(angle));
+    diffuser.move(distance * Math.cos(angle), distance * Math.sin(angle));
     if (animateOn) {
       try {
         Thread.sleep(PAUSE_TIME);
@@ -165,10 +179,21 @@ public class DLA {
       
   }
 
+  /* 
+   * returns a point-distance pair. The point is the point closest to the diffuser, and the
+   * distance is the distance between the CENTERS of the two points. 
+   */
+
   private PointDistancePair<Node> getDistanceNodePair(Node diffuser) {
     if (debugOn) System.out.print("getNextJumpRadius\n");
+    PointDistancePair<Node> cpdp = qt.closestPointDistancePair(diffuser.toPoint());
 
-    return qt.closestPointDistancePair(diffuser.toPoint());
+    if (cpdp.getDistance() < 2 * particleRadius) {
+      throw new EmptyStackException();
+    }
+    
+
+    return cpdp;
 
     // Node closestNode = nodeList.get(0);
     // double squareDistance = getSquareDistanceBetween(closestNode, diffuser);
@@ -182,9 +207,10 @@ public class DLA {
     //   diffuser.getRadius() - closestNode.getRadius();
   }
 
+
   private void attach(Node diffuser, Node sticker) {
     if (debugOn) {
-      System.out.print("attach\n");
+      System.out.print("attaching \n");
       System.out.print(diffuser.toString() + " attaching to " +  sticker.toString() + "\n");
     }
     //snapTo(diffuser, sticker);
@@ -214,13 +240,25 @@ public class DLA {
   }
 
   private boolean particleOutOfBounds(Node diffuser) {
-    if (debugOn) System.out.print("particleOutOfBounds \n");
+    if (debugOn) {
+      if (diffuser.getDistanceFromOrigin() > killRadius) {
+        System.out.print("particle out of bounds \n");
+      }
+    }
     return (diffuser.getDistanceFromOrigin() > killRadius);
   }
 
-  private boolean hasParticleHit(double radius) { 
-    if (debugOn) System.out.print("hasParticleHit\n");
-    return (radius < snapDistance);
+  /*
+   * distance is the smallest distance between the edge of the diffuser and the edge of the 
+   * closest node in the aggregate. 
+   * snapDistance is the minimum distance between particle boundaries for which we attach.
+   */
+  private boolean hasParticleHit(double distance ) { 
+    if (debugOn) 
+      if (distance < snapDistance) {
+        System.out.print("Particle has hit\n");
+      }
+    return (distance < snapDistance);
   }
 
   private void snapTo(Node diffuser, Node sticker) {

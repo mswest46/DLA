@@ -6,11 +6,16 @@ import java.awt.Color;
 import java.awt.Graphics;
 import quadtree.*;
 
-public class Node implements java.io.Serializable{
+public class Node{
 
   private static final boolean debugOn = true;
-  private static final long serialVersionUID = 1;
 
+  private double radius;
+  private double x;
+  private double y;
+  private double vel;
+  private double angle;
+  private List<Node> neighbors = new ArrayList<Node>();
 
 
   public Node(double x,double y) {
@@ -35,6 +40,11 @@ public class Node implements java.io.Serializable{
   public void move(double addX, double addY) { 
     x += addX;
     y += addY;
+  }
+
+  public void setLocation(double x, double y) {
+    this.x = x;
+    this.y = y;
   }
 
   public double getX() {
@@ -67,10 +77,4 @@ public class Node implements java.io.Serializable{
     g.drawOval((int) x + offsetWide, (int) y + offsetTall, 2* (int) radius, 2* (int) radius);
   }
 
-  private double radius;
-  private double x;
-  private double y;
-  private double vel;
-  private double angle;
-  private List<Node> neighbors = new ArrayList<Node>();
 }

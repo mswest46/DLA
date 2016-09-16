@@ -122,6 +122,9 @@ public class DLA {
 
      PointDistancePair<Node> distanceNodePair = getDistanceNodePair(diffuser);
      double distance = distanceNodePair.getDistance();
+     if (animateOn) {
+       thePanel.setNearestNode(distanceNodePair.getPoint().data);
+     }
      while (true) { 
        makeJump(diffuser, distance);
        if (particleOutOfBounds(diffuser)) { 
@@ -129,6 +132,9 @@ public class DLA {
        }
        distanceNodePair = getDistanceNodePair(diffuser);
        distance = distanceNodePair.getDistance();
+       if (animateOn) {
+         thePanel.setNearestNode(distanceNodePair.getPoint().data);
+       }
        if (hasParticleHit(distance)) break;
      }
      Node sticker = distanceNodePair.getPoint().data;

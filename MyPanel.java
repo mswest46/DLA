@@ -21,8 +21,12 @@ class MyPanel extends JPanel {
   private static final int PANEL_HEIGHT= 1000;
   private List<Node> nodeList;
   private Node diffuser;
+  private Node nearestNode;
   public void setDiffuser(Node diffuser) {
     this.diffuser = diffuser;
+  }
+  public void setNearestNode(Node nearestNode) {
+    this.nearestNode = nearestNode;
   }
   public void updateNodeList(List<Node> nodeList) {
     this.nodeList = nodeList;
@@ -42,6 +46,9 @@ class MyPanel extends JPanel {
     }
     color = Color.RED;
     diffuser.paintNode(g,color, PANEL_WIDTH/2, PANEL_WIDTH/2);
+    if (!(nearestNode==null)) {
+      nearestNode.paintNode(g,Color.BLUE, PANEL_WIDTH/2, PANEL_WIDTH/2);
+    }
   }
       
 }

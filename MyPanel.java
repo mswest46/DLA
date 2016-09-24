@@ -16,7 +16,7 @@ import java.awt.event.MouseMotionListener;
 import java.awt.event.MouseMotionAdapter;
 
 class MyPanel extends JPanel { 
-
+ 
   private static final int PANEL_WIDTH = 1000;
   private static final int PANEL_HEIGHT= 1000;
   private List<Particle> particleList;
@@ -34,21 +34,38 @@ class MyPanel extends JPanel {
   public Dimension getPreferredSize() {
     return new Dimension(PANEL_WIDTH,PANEL_HEIGHT);
   } 
-  public void moveParticle(){
-    // clipping todo.
+  public void moveParticle(double oldX, double oldY, double newX, double newY, double radius){
+    repaint();
+    // paintwhereParticleUsedToBe();
+    // paintwhereParticleIsNow();
+    // not working
+    //repaint((int)(oldX - 4 * radius + PANEL_WIDTH/2), 
+    //    (int) (oldY + 4 * radius + PANEL_HEIGHT/2),
+    //    (int) (8 * radius), 
+    //    (int) (8 * radius));
+    //repaint((int)(newX - 4 * radius + PANEL_WIDTH/2), 
+    //    (int) (newY + 4 * radius + PANEL_HEIGHT/2), 
+    //    (int) (8 * radius), 
+    //    (int) (8 * radius));
+  }
+
+  public void finalPaint(){
     repaint();
   }
+
+  /*
+   * @override
+   */
   public void paintComponent(Graphics g) {
     super.paintComponent(g);
     Color color = Color.BLACK;
-    for (Particle node: particleList) { 
-      node.paintNode(g, color, PANEL_WIDTH/2, PANEL_WIDTH/2);
-    }
+     for (Particle node: particleList) { 
+       node.paintNode(g, color, PANEL_WIDTH/2, PANEL_HEIGHT/2); }
     color = Color.RED;
-    diffuser.paintNode(g,color, PANEL_WIDTH/2, PANEL_WIDTH/2);
-    if (!(nearestNode==null)) {
-      nearestNode.paintNode(g,Color.BLUE, PANEL_WIDTH/2, PANEL_WIDTH/2);
-    }
+    // diffuser.paintNode(g,color, PANEL_WIDTH/2, PANEL_HEIGHT/2);
+    // if (!(nearestNode==null)) {
+    //   nearestNode.paintNode(g,Color.BLUE, PANEL_WIDTH/2, PANEL_WIDTH/2);
+    // }
   }
       
 }

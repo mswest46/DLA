@@ -4,9 +4,9 @@ import java.util.*;
 import acm.util.*;
 import java.awt.Color;
 import java.awt.Graphics;
-import quadtree.*;
+import basics.*;
 
-public class Particle extends Point {
+public class Particle extends Point2D {
 
   private double radius;
   private double vel;

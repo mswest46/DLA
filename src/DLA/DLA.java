@@ -1,3 +1,5 @@
+// TODO: There is a bug if i change how oftwen we reset kd. find out why. 
+//
 package DLA;
 
 import java.lang.Math.*;
@@ -12,15 +14,15 @@ import java.awt.Dimension;
 import java.awt.Graphics; 
 import java.lang.Thread;
 import quadtree.*;
+import kdtree.*;
 
 public class DLA { 
   // TODO: change all words node to particle. 
 
   //constants
-  private static final double particleRadius = 1; // the radius of the particle. Could be variable at some point? Would make the quadtree difficult. 
-  private static final double snapDistance = .01; // When particles are snapDistance apart, we say they are attached. 
+  private static final double particleRadius = 5; // the radius of the particle. Could be variable at some point? Would make the quadtree difficult. 
+  private static final double snapDistance = particleRadius / 1000; // When particles are snapDistance apart, we say they are attached. 
   private static final double killRadius = Integer.MAX_VALUE; // when particle floats killRadius apart, we replace it with a new particle. 
-  private static final boolean debugOn = true; // debug switch
   private int[] jumpCalls; // number of calls to makeJump in each iteration
   private long[] diffuseTimes; // time spent diffusing in each iteration
   private long[] attachTimes; // time spent attaching in each iteration.
@@ -28,20 +30,22 @@ public class DLA {
   private int nParticles; // how many particles in the simulation. 
   private double aggregateRadius; // the maximum distance of any aggregated particle from the origin. 
   private List<Particle> particleList = new ArrayList<Particle>(); // a list of the particles in the aggregate. 
-  private Quadtree qt; // quadtree for searching for nearest aggregate particle.
   private static final RandomGenerator rgen = new RandomGenerator(); // makes the randoms. 
   private int particleNumber = 0; // counts how many particles have attached. 
   private Particle diffuser; // the diffusing particle
 
-  // animation stuff. 
+  // animation stuff. why should any of these be static?
   private AnimationOptions animationOptions; // animation switch 
+  private static AnimationType animationType;
+  private static double minDistance;
   private static MyPanel thePanel; // where we animate. 
-  private static final int PAUSE_TIME = 100; // pause in ms between particle jumps. 
-  // boundary box for aggregate. TODO: make this automatic, depending on particle radius and nParticles;
-  private double X_MIN = -100000;  
-  private double Y_MIN = -100000;
-  private double AGG_WIDTH = 200000;
-  private double AGG_HEIGHT = 200000;
+  private static int PAUSE_TIME; // pause in ms between particle jumps. 
+  
+  // data tree stuff.
+  private StoreType storeType;
+  private DataStore data;
+
+  // quadtree stuff.
 
 
   /*
@@ -49,9 +53,13 @@ public class DLA {
    * @param nParticles     number of particles in the simulation
    * @param animationOptions 
    */
-  public DLA(int nParticles, AnimationOptions animationOptions) {
+  public DLA(int nParticles, AnimationOptions animationOptions, StoreType storeType) {
     this.nParticles = nParticles;
     this.animationOptions = animationOptions;
+    this.storeType = storeType;
+    DLA.animationType = animationOptions.type;
+    DLA.minDistance = animationOptions.minDistance;
+    DLA.PAUSE_TIME = animationOptions.pause;
     initialize();
     
     System.out.println("Creating DLA aggregate with " + nParticles + " particles.");
@@ -61,26 +69,25 @@ public class DLA {
   }
 
   public void initialize() {
+    this.data = new DataStore(storeType, nParticles);
     // TODO: 5 particle capacity? what's best? 
-    qt = new Quadtree (50, X_MIN, Y_MIN, AGG_WIDTH, AGG_HEIGHT);
+    // qt = new Quadtree (50, X_MIN, Y_MIN, AGG_WIDTH, AGG_HEIGHT);
 
     // TODO: add seed input functionality. i.e. caller sets the seed. 
     Particle seed = new Particle(0,0,particleRadius);
     
     // TODO: add helper to do quadtree and particleList and aggregateRadius. 
+    data.addParticle(seed);
     particleList.add(seed);
-    qt.insert(seed);
     aggregateRadius = 0;
 
-
-    System.out.println(animationOptions.type);
-    if (animationOptions.type.equals("continous")) { 
+    if (animationType != AnimationType.NONE) { 
       createAndShowGUI();
       thePanel.updateParticleList(particleList);
     }
 
     // TODO: just for debugs, get rid of eventually.
-    rgen.setSeed(1);
+    rgen.setSeed(3);
 
     // timing stuff. 
     diffuseTimes = new long[nParticles];
@@ -95,7 +102,7 @@ public class DLA {
   private static void createAndShowGUI(){
         JFrame f = new JFrame("DLA");
         f.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE); 
-        thePanel = new MyPanel();
+        thePanel = new MyPanel(animationType);
         f.add(thePanel);
         f.pack();
         f.setLocationRelativeTo(null);
@@ -106,6 +113,7 @@ public class DLA {
    * werks. 
    */
   private void simulate() {
+    long startTime = System.nanoTime();
     for (int i = 0; i < nParticles; i++) {
       introduceDiffuser();
       long diffuseStartTime = System.nanoTime();
@@ -117,11 +125,23 @@ public class DLA {
       System.out.print("Particle number " + particleNumber + " attached.\n");
       particleNumber++;
     }
-    if (animationOptions.type.equals("final")) {
-      createAndShowGUI();
+
+
+    double simulationTime = (double) (System.nanoTime() - startTime) / (60 * Math.pow(10, 9));
+    System.out.println("simulation lasted " + simulationTime + " minutes" );
+
+
+
+    if (animationType != AnimationType.NONE) {
+      try {
+        Thread.sleep(PAUSE_TIME);
+      } catch (Exception e) {
+        System.out.print(e);
+      }
       thePanel.updateParticleList(particleList);
       thePanel.finalPaint();
     }
+
   }
   
 
@@ -133,7 +153,8 @@ public class DLA {
     double R = aggregateRadius + 2 * particleRadius; // close as possible without risking overlap 
     double angle = rgen.nextDouble(0,2*Math.PI);
     diffuser = new Particle(R * Math.cos(angle), R * Math.sin(angle), particleRadius);
-    if (animationOptions.type.equals("continous")) {
+    boolean animateDiffuser = (animationType == AnimationType.DIFFUSE_FAST || animationType == AnimationType.DIFFUSE_SLOW);
+    if (animateDiffuser) {
       thePanel.setDiffuser(diffuser);
     }
   }
@@ -146,46 +167,65 @@ public class DLA {
   private Particle diffuseUntilHit() { 
     
     // get the closest particle in aggregate. 
-    PointDistancePair closestParticleAndDistance = closestToDiffuser();
-    if (animationOptions.type.equals("continous")) {
-      thePanel.setNearestNode((Particle)closestParticleAndDistance.getPoint());
+    Particle closestParticle = closestToDiffuser();
+    boolean animateDiffuser = (animationType == AnimationType.DIFFUSE_FAST || animationType == AnimationType.DIFFUSE_SLOW);
+
+    if (animateDiffuser) {
+      thePanel.setNearestNode(closestParticle);
     }
     // shrink the distance, accoutngin for particle radii. 
-    double distance = takeParticleSizeIntoAccount(closestParticleAndDistance.getDistance());
+    double distance = adjustDistance(diffuser.distanceTo(closestParticle));
 
     // jumping loop. 
     while (true) { 
       // make the diffuser jump the distance at a random angle. 
       jumpCalls[particleNumber]++;
+
+      // for animation.
+      double oldX = diffuser.getX();
+      double oldY = diffuser.getY();
+
+
       makeJump(distance);
 
-      // if the diffuser has strayed beyond the kill radius, replace it with a new particle. 
-      // TODO: see if this can just use the distance we already extracted with quadtree, and make the diffuser an instance var. 
+      // if the diffuser has strayed beyond the kill radius, replace it with a new particle. Resets
+      // diffuser in animation as well.
       if (particleOutOfBounds(diffuser)) { 
         introduceDiffuser();
       }
 
-      closestParticleAndDistance = closestToDiffuser();
-      // colors the nearest node blue. 
-      if (animationOptions.type.equals("continous")) {
-        thePanel.setNearestNode((Particle)closestParticleAndDistance.getPoint());
+      closestParticle = closestToDiffuser();
+      if (animateDiffuser) {
+        // diffuser is know already. 
+        // set the nearest node. 
+        thePanel.setNearestNode(closestParticle);
+        // repaints
+        thePanel.moveParticle(oldX,oldY,diffuser.getX(),diffuser.getY(),diffuser.getRadius());
+        try {
+          Thread.sleep(PAUSE_TIME);
+        } catch (Exception e) {
+          System.out.print(e);
+        }
       }
-      distance = takeParticleSizeIntoAccount(closestParticleAndDistance.getDistance());
+      distance = adjustDistance(diffuser.distanceTo(closestParticle));
 
       // if we hit the aggregate, break
       if (hasParticleHit(distance)) break;
     }
     
-    Particle sticker = (Particle)closestParticleAndDistance.getPoint();
-    return sticker;
+    return closestParticle;
   }
 
   /*
    * takes in the distance between the centers of two nodes and returns the distance between the edges of two nodes. 
    * TODO: assuming for now that particles have the same radius. Not sure I always will. 
    */
-  private double takeParticleSizeIntoAccount(double distance) {
-    return distance - 2 * particleRadius;
+  private double adjustDistance(double distance) {
+    distance = distance - 2 * particleRadius;
+    if (animationType == AnimationType.DIFFUSE_SLOW) {
+      distance = Math.min(distance, minDistance);
+    }
+    return distance;
   }
 
   /*
@@ -195,19 +235,7 @@ public class DLA {
    */
   private void makeJump(double distance) { 
     double angle = rgen.nextDouble(0,2*Math.PI);
-    double oldX = diffuser.getX();
-    double oldY = diffuser.getY();
     diffuser.move(distance * Math.cos(angle), distance * Math.sin(angle));
-    if  (animationOptions.type.equals("continous")) {
-      try {
-        Thread.sleep(PAUSE_TIME);
-      } catch (Exception e) {
-        System.out.print(e);
-      }
-      // repaints here. 
-      thePanel.moveParticle(oldX,oldY,diffuser.getX(),diffuser.getY(),diffuser.getRadius());
-    }
-      
   }
 
   /* 
@@ -215,15 +243,15 @@ public class DLA {
    * @ param diffuser   the diffusing particle
    * @returns           the closest particle and its distance in an object. 
    */
-  private PointDistancePair closestToDiffuser() {
-    PointDistancePair cpdp = qt.closestPointDistancePair(diffuser);
+  private Particle closestToDiffuser() {
+    return data.nearestNeighbor(diffuser);
+    // PointDistancePair cpdp = qt.closestPointDistancePair(diffuser);
 
     // if (cpdp.getDistance() < 2 * particleRadius) {
     //   //TODO: why is this happening when I use small particle radius? 
     //   System.out.println("NOT A REAL EMPTYSTACK I JUST DONT KNOW HOW EXCEPTIONS WORK");
     //   throw new EmptyStackException();
     // }
-    return cpdp;
   }
 
 
@@ -236,7 +264,11 @@ public class DLA {
     //snapTo(diffuser, sticker);
     sticker.addNeighbor(diffuser);
     diffuser.addNeighbor(sticker);
-    if (animationOptions.type.equals("continous")) {
+    boolean animateAttacher = (animationType == AnimationType.DIFFUSE_SLOW 
+        || animationType == AnimationType.DIFFUSE_FAST
+        || animationType == AnimationType.ATTACH);
+    // why? lets the diffusing animation finish? and then goes about attaching? 
+    if (animateAttacher) {
       try {
         Thread.sleep(PAUSE_TIME);
       } catch (Exception e) {
@@ -244,9 +276,13 @@ public class DLA {
       }
     }
     particleList.add(diffuser);
-    qt.insert(diffuser);
-    if (animationOptions.type.equals("continous")) {
+    // qt.insert(diffuser);
+    data.addParticle(diffuser);
+    if (animateAttacher) {
       thePanel.updateParticleList(particleList);
+    }
+    if (animationType == AnimationType.ATTACH) {
+      thePanel.finalPaint();
     }
 
     // update aggregate radius if it has grown. 

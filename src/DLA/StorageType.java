@@ -1,5 +1,5 @@
 package DLA;
 
-public enum StoreType { 
+public enum StorageType { 
   LINEAR, KDTREE, QUADTREE, DEBUG
 }

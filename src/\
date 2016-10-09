@@ -1,0 +1,61 @@
+package DLA;
+import java.util.*;
+
+public class ExampleDLA {
+  public static final Scanner reader = new Scanner(System.in);
+  public static void main(String[] args) {
+    AnimationOptions animationOptions = inputAnimationOptions();
+    StorageOptions storageOptions = inputStorageOptions();
+    AggregateOptions aggregateOptions = inputAggregateOptions();
+    DLA aggregate = new DLA(aggregateOptions, animationOptions, storageOptions);
+  }
+  public static AnimationOptions inputAnimationOptions(){
+    AnimationOptions animationOptions = new AnimationOptions();
+    
+    System.out.println("Type \"diffuse\", \"attach\", or \"final\" to pick animation type.");
+    String typeString = reader.nextLine();
+    AnimationType type;
+    switch (typeString) { 
+      case "diffuse": type = AnimationType.DIFFUSE_FAST;
+                      break;
+      case "attach": type = AnimationType.ATTACH;
+                    break;
+      case "final": type = AnimationType.FINAL;
+                    break;
+      default: 
+                    throw new RuntimeException("enter one of the three types");
+    }
+
+    System.out.println("Pause between animation steps");
+    animationOptions.setPause(reader.nextInt());
+
+
+    animationOptions.setMinDistance(5);
+    animationOptions.setPause(1);
+    animationOptions.setType(AnimationType.ATTACH);
+    return animationOptions;
+  }
+  public static StorageOptions inputStorageOptions(){
+    System.out.println("Type \"kd\", \"qt\", or \"linear\" to store data in a KDtree, Quadtree, or simple array.");
+    String typeString = reader.nextLine();
+    StorageType type;
+    switch (typeString) { 
+      case "kd": type = StorageType.KDTREE;
+        break;
+      case "qt": type = StorageType.QUADTREE;
+        break;
+      case "linear": type = StorageType.LINEAR;
+        break;
+      default: 
+        throw new RuntimeException("enter one of the three types");
+    }
+    return new StorageOptions(type);
+  }
+  public static AggregateOptions inputAggregateOptions(){
+    System.out.println("Particle radius: ");
+    double rad = reader.nextDouble();
+    System.out.println("number of particles in simulation:");
+    int num = reader.nextInt();
+    return new AggregateOptions(num, rad);
+  }
+}

@@ -1,10 +1,10 @@
-
 // TODO: rename KDNode. is closer to the truth. also some other bad names.
-// TODO: clean up the constructor mess. 
-// TODO: make some real interactive tests. 
+// TODO: tests. 
+// TODO: make search and insert the same function. 
+// TODO: comment bettah.
+// TODO: make comparator bettah. 
 
 package kdtree;
-
 
 import java.util.Collections;
 import java.util.Arrays;
@@ -41,21 +41,23 @@ public class KDtree {
   }
 
   // call with no points. 
-  public KDtree(int k, int depth, KDtree parent, boolean isLeft) {
+  private KDtree(int k, int depth, KDtree parent, boolean isLeft) {
     instantiateMyself(k, depth, parent, isLeft);
   }
+
   // call with points
-  public KDtree(Point2D[] pointList, int k, int depth, KDtree parent, boolean isLeft) {
+  private KDtree(Point2D[] pointList, int k, int depth, KDtree parent, boolean isLeft) {
     instantiateMyself(k, depth, parent, isLeft);
     fillMyself(pointList);
   }
 
   // call with single point
-  public KDtree(Point2D point, int k, int depth, KDtree parent, boolean isLeft) {
+  private KDtree(Point2D point, int k, int depth, KDtree parent, boolean isLeft) {
     this(new Point2D[] {point}, k, depth, parent, isLeft);
   }
 
-  ////////////////////////////////////////////////////////////////////////////////
+  ///////////////////////////////////////////////////////////////////////////////////////////
+  // 
 
   //  makes node with all variables filled but location and children. 
   //  this is set with parent, BEFORE the parent claims this as child. 
@@ -138,23 +140,17 @@ public class KDtree {
     Arrays.sort(pointList, comparator);
   }
 
+  /////////////////////////////////////////////////////////////////////////////////////////
+
   public boolean insert(Point2D point) {
     if (isEmpty) { 
-      fillMyself(new Point2D[]{point});
+      fillMyself(point);
       return true;
     }
     nPointsStored++; // we are inserting a point somewhere in this node's subtree.
     if (goesInLeft(point)) { // i.e. along the splitAxis, this point falls to the left of location
-      if (leftChild.isEmpty) { // we've reached a leaf. 
-        leftChild.fillMyself(point);
-        return true;
-      } 
       return leftChild.insert(point);
     } else { // i.e. point goes in right
-      if (rightChild.isEmpty) {
-        rightChild.fillMyself(point);
-        return true;
-      }  
       return rightChild.insert(point);
     }
   }
@@ -171,17 +167,8 @@ public class KDtree {
     return false;
   }
 
-  public int getDepth() {
-    return depth;
-  }
-  
-  public Point2D getLocation() { 
-    return location;
-  }
-
-
   // returns the would-be insertion node of target, if we were to insert target into the tree. 
-  public KDtree search(Point2D target) { 
+  private KDtree search(Point2D target) { 
     if (isEmpty) return this;
     if (goesInLeft(target)) { // i.e. along the splitAxis, this point falls to the left of location
       return leftChild.search(target);
@@ -190,13 +177,12 @@ public class KDtree {
     }
   }
 
-  public String toString() { 
-    return "KD node with location: " + location.toString();
-  }
   // caller is the node that is calling. We don't want to back up beyond caller. 
   //
   public Point2D nearestNeighbor(Point2D target) { 
+
     KDtree node = search(target);
+
     Point2D guess = node.parent.getLocation();
     double bestDistance = target.distanceTo(guess);
 
@@ -212,6 +198,7 @@ public class KDtree {
       }
 
       double distanceToSplit;
+
       switch (node.splitAxis) { 
         case 0: 
           distanceToSplit = Math.abs(target.getX() - node.getLocation().getX());
@@ -222,8 +209,6 @@ public class KDtree {
         default: 
           throw new RuntimeException();
       }
-
-
 
      KDtree otherChild; 
      otherChild = (cameFromLeft) ? node.rightChild : node.leftChild;
@@ -241,31 +226,27 @@ public class KDtree {
     return guess;
   }
 
-  // /* 
-  //  * traverses the tree until finds a leaf, (i.e. and empty node. TODO: replace isEmpty wiht isLeaf?);
-  //  */
-  // public BestPointCurrentNodePair search (Point target, Point bestPoint) {
+  /*
+   * returns a crude measure of the balance of the tree.
+   */
+  public double getBalance() {
+    double balance = (nPointsStored - height) / (nPointsStored - Math.log(nPointsStored)/Math.log(2));
+    double threshold = (nPointsStored - Math.pow(Math.log(nPointsStored)/Math.log(2), 2) ) / (nPointsStored - Math.log(nPointsStored)/Math.log(2));
+    if (balance < threshold) { 
+      System.out.println("unbalanced");
+    }
+    return balance;
+  }
 
-  //   // we reach leaf node. we return the best Point and the current Node. 
-  //   if (this.isEmpty) {
-  //     BestPointCurrentNodePair pointNode = new BestPointCurrentNodePair();
-  //     pointNode.currentNode = this;
-  //     pointNode.bestPoint = bestPoint;
-  //     return pointNode;
-  //   }
-
-  //   // we are currently closer to target than best point. update best point. 
-  //   if (target.distanceTo(this.location) < target.distanceTo(bestPoint)) {
-  //     bestPoint = this.location;
-  //   }
-  //   // we keep traversing
-  //   if (goesInLeft(target)) {
-  //     return leftChild.search(target, bestPoint);
-  //   } else {
-  //     return rightChild.search(target, bestPoint);
-  //   }
-  // }
-
+  public Point2D getLocation() { 
+    return location;
+  }
+  public int getDepth() {
+    return depth;
+  }
+  public String toString() { 
+    return "KD node with location: " + location.toString();
+  }
   public void print() {
     print("",true);
   }
@@ -282,15 +263,4 @@ public class KDtree {
     if (!(rightChild==null)) rightChild.print(prefix + (isTail ? "    " : "│   "), true);  
   }
 
-  /*
-   * returns a crude measure of the balance of the tree.
-   */
-  public double getBalance() {
-    double balance = (nPointsStored - height) / (nPointsStored - Math.log(nPointsStored)/Math.log(2));
-    double threshold = (nPointsStored - Math.pow(Math.log(nPointsStored)/Math.log(2), 2) ) / (nPointsStored - Math.log(nPointsStored)/Math.log(2));
-    if (balance < threshold) { 
-      System.out.println("unbalanced");
-    }
-    return balance;
-  }
 }

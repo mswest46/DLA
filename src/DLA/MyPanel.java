@@ -20,7 +20,7 @@ class MyPanel extends JPanel {
   private static final int PANEL_HEIGHT= 1000;
   private List<Particle> particleList;
   private Particle diffuser;
-  private Particle nearestNode;
+  private Particle nearestParticle;
   private AnimationType animationType;
 
   public MyPanel (AnimationType type) {
@@ -36,8 +36,8 @@ class MyPanel extends JPanel {
     this.diffuser = diffuser;
   }
 
-  public void setNearestNode(Particle nearestNode) {
-    this.nearestNode = nearestNode;
+  public void setNearestParticle(Particle nearestParticle) {
+    this.nearestParticle = nearestParticle;
   }
 
   public void updateParticleList(List<Particle > particleList) {
@@ -71,16 +71,16 @@ class MyPanel extends JPanel {
   public void paintComponent(Graphics g) {
     super.paintComponent(g);
     Color color = Color.BLACK;
-     for (Particle node: particleList) { 
-       node.paintNode(g, color, PANEL_WIDTH/2, PANEL_HEIGHT/2); }
+     for (Particle particle: particleList) { 
+       particle.paint(g, color, PANEL_WIDTH/2, PANEL_HEIGHT/2); }
 
     boolean animateDiffuser = (animationType == AnimationType.DIFFUSE_SLOW 
         || animationType == AnimationType.DIFFUSE_FAST);
 
     if (animateDiffuser) {
-      diffuser.paintNode(g,Color.RED, PANEL_WIDTH/2, PANEL_HEIGHT/2);
-      if (!(nearestNode==null)) {
-        nearestNode.paintNode(g,Color.BLUE, PANEL_WIDTH/2, PANEL_WIDTH/2);
+      diffuser.paint(g,Color.RED, PANEL_WIDTH/2, PANEL_HEIGHT/2);
+      if (!(nearestParticle==null)) {
+        nearestParticle.paint(g,Color.BLUE, PANEL_WIDTH/2, PANEL_WIDTH/2);
       }
     }
   }

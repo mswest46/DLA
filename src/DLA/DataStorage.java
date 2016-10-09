@@ -6,15 +6,15 @@ import acm.util.*;
 import java.util.*;
 
 
-public class DataStore { 
-  private StoreType type;
+public class DataStorage { 
+  private StorageType type;
 
   private List<Particle> particleList; 
   private KDtree kd;
   private Quadtree qt;
 
-  public DataStore(StoreType type, int nParticles) { 
-    this.type = type;
+  public DataStorage(StorageOptions storageOptions, int nParticles) { 
+    this.type = storageOptions.type;
     switch (type) { 
       case LINEAR:
         makeLinearStore();

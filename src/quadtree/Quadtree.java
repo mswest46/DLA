@@ -1,4 +1,10 @@
+//TODO: add a print method like with kd tree. 
+//TODO: exceptions.
+//TODO: remove method. 
+//TODO: comment better.
+//TODO: comprehensive tests. 
 package quadtree;
+
 import java.util.*;
 import basics.*;
 
@@ -8,12 +14,11 @@ public class Quadtree {
   private BoundingBox bb;
   private Quadtree NE, SE, SW, NW;
   private List<Quadtree> children = new ArrayList<Quadtree>();
+
   // for debugging/visualization. 
   public int level;
   public int nPointsStored; //includes points in subtrees
   
-  private boolean debugOn = true;
-
   public Quadtree (int NODE_CAPACITY, double x, double y, double width, double height) {
     // initial call creates root at level 0;
     this(NODE_CAPACITY, x, y, width, height, 0);
@@ -80,50 +85,37 @@ public class Quadtree {
     children.add(SE);
     children.add(SW);
     children.add(NW);
-
   }
 
   public Point2D nearestNeighbor(Point2D p) { 
-    return closestPointDistancePair(p).getPoint();
+    Point2D bestP = points.get(0);
+    return nearestNeighbor(p, bestP);
   }
 
-  /*
-   * returns the distance between p and the nearest point in the QT;
-   * TODO: This should all be in a nearest neighbors function. 
-   */
-  public PointDistancePair closestPointDistancePair(Point2D p) {
-    PointDistancePair closestPointDistance
-      = new PointDistancePair(points.get(0),p.distanceTo(points.get(0)));
-    return updateBestDistance(p, closestPointDistance);
-  }
+  private Point2D nearestNeighbor(Point2D p, Point2D bestP) { 
 
-  /*
-   * updates the best distance by recursively searching children. 
-   */
-  public PointDistancePair updateBestDistance(Point2D p, PointDistancePair closestPointDistance) {
-
-    if (!bb.intersectsCircle(p, closestPointDistance.getDistance())) {
-      return closestPointDistance;
+    double bestD = p.distanceTo(bestP);
+    
+    if (!bb.intersectsCircle(p, bestD)) {
+      return bestP;
     }
-
 
     // update min distance in this box. 
-
     for (Point2D point : points) {
-      if (closestPointDistance.getDistance() > p.distanceTo(point)) {
-        closestPointDistance.set(point, p.distanceTo(point));
-        if (debugOn) {
-        }
+      if (bestD > p.distanceTo(point)) {
+        bestP = point;
+        bestD = p.distanceTo(bestP);
       }
     }
+
     // update min distance from children. 
     if (!(NE==null)) {
       for (Quadtree qt : children) {
-        closestPointDistance = qt.updateBestDistance(p, closestPointDistance);
+        bestP = qt.nearestNeighbor(p, bestP);
       }
     }
 
-    return closestPointDistance;
+    return bestP;
   }
 
   /*

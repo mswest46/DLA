@@ -1,5 +1,4 @@
-// TODO: There is a bug if i change how oftwen we reset kd. find out why. 
-//
+//TODO: comment better
 package DLA;
 
 import java.lang.Math.*;
@@ -17,16 +16,15 @@ import quadtree.*;
 import kdtree.*;
 
 public class DLA { 
-  // TODO: change all words node to particle. 
 
   //constants
-  private static final double particleRadius = 5; // the radius of the particle. Could be variable at some point? Would make the quadtree difficult. 
-  private static final double snapDistance = particleRadius / 1000; // When particles are snapDistance apart, we say they are attached. 
   private static final double killRadius = Integer.MAX_VALUE; // when particle floats killRadius apart, we replace it with a new particle. 
   private int[] jumpCalls; // number of calls to makeJump in each iteration
   private long[] diffuseTimes; // time spent diffusing in each iteration
   private long[] attachTimes; // time spent attaching in each iteration.
 
+  private double particleRadius;
+  private double snapDistance; // When particles are snapDistance apart, we say they are attached. 
   private int nParticles; // how many particles in the simulation. 
   private double aggregateRadius; // the maximum distance of any aggregated particle from the origin. 
   private List<Particle> particleList = new ArrayList<Particle>(); // a list of the particles in the aggregate. 
@@ -35,15 +33,14 @@ public class DLA {
   private Particle diffuser; // the diffusing particle
 
   // animation stuff. why should any of these be static?
-  private AnimationOptions animationOptions; // animation switch 
   private static AnimationType animationType;
-  private static double minDistance;
+  private static double maxDistance;
   private static MyPanel thePanel; // where we animate. 
   private static int PAUSE_TIME; // pause in ms between particle jumps. 
   
   // data tree stuff.
-  private StoreType storeType;
-  private DataStore data;
+  private StorageType storageType;
+  private DataStorage data;
 
   // quadtree stuff.
 
@@ -53,30 +50,28 @@ public class DLA {
    * @param nParticles     number of particles in the simulation
    * @param animationOptions 
    */
-  public DLA(int nParticles, AnimationOptions animationOptions, StoreType storeType) {
-    this.nParticles = nParticles;
-    this.animationOptions = animationOptions;
-    this.storeType = storeType;
+  public DLA(AggregateOptions aggregateOptions, AnimationOptions animationOptions, StorageOptions storageOptions) {
+    this.nParticles = aggregateOptions.nParticles;
+    this.particleRadius = aggregateOptions.particleRadius;
+    this.snapDistance = particleRadius/1000;
+
     DLA.animationType = animationOptions.type;
-    DLA.minDistance = animationOptions.minDistance;
+    DLA.maxDistance = animationOptions.maxDistance;
     DLA.PAUSE_TIME = animationOptions.pause;
-    initialize();
+
+
+    initialize(storageOptions);
     
     System.out.println("Creating DLA aggregate with " + nParticles + " particles.");
     simulate();
-    outputTimings();
-    outputAggregate();
   }
 
-  public void initialize() {
-    this.data = new DataStore(storeType, nParticles);
-    // TODO: 5 particle capacity? what's best? 
-    // qt = new Quadtree (50, X_MIN, Y_MIN, AGG_WIDTH, AGG_HEIGHT);
+  public void initialize(StorageOptions storageOptions) {
+    this.data = new DataStorage(storageOptions, nParticles);
 
     // TODO: add seed input functionality. i.e. caller sets the seed. 
     Particle seed = new Particle(0,0,particleRadius);
     
-    // TODO: add helper to do quadtree and particleList and aggregateRadius. 
     data.addParticle(seed);
     particleList.add(seed);
     aggregateRadius = 0;
@@ -115,11 +110,14 @@ public class DLA {
   private void simulate() {
     long startTime = System.nanoTime();
     for (int i = 0; i < nParticles; i++) {
+
+      System.out.println("here");
       introduceDiffuser();
       long diffuseStartTime = System.nanoTime();
       Particle sticker = diffuseUntilHit();
       diffuseTimes[particleNumber] = System.nanoTime() - diffuseStartTime;
       long attachStartTime = System.nanoTime();
+      System.out.println("there");
       attach(diffuser, sticker);
       attachTimes[particleNumber] = System.nanoTime() - attachStartTime;
       System.out.print("Particle number " + particleNumber + " attached.\n");
@@ -129,7 +127,6 @@ public class DLA {
 
     double simulationTime = (double) (System.nanoTime() - startTime) / (60 * Math.pow(10, 9));
     System.out.println("simulation lasted " + simulationTime + " minutes" );
-
 
 
     if (animationType != AnimationType.NONE) {
@@ -171,7 +168,7 @@ public class DLA {
     boolean animateDiffuser = (animationType == AnimationType.DIFFUSE_FAST || animationType == AnimationType.DIFFUSE_SLOW);
 
     if (animateDiffuser) {
-      thePanel.setNearestNode(closestParticle);
+      thePanel.setNearestParticle(closestParticle);
     }
     // shrink the distance, accoutngin for particle radii. 
     double distance = adjustDistance(diffuser.distanceTo(closestParticle));
@@ -180,6 +177,7 @@ public class DLA {
     while (true) { 
       // make the diffuser jump the distance at a random angle. 
       jumpCalls[particleNumber]++;
+      System.out.println("here");
 
       // for animation.
       double oldX = diffuser.getX();
@@ -198,7 +196,7 @@ public class DLA {
       if (animateDiffuser) {
         // diffuser is know already. 
         // set the nearest node. 
-        thePanel.setNearestNode(closestParticle);
+        thePanel.setNearestParticle(closestParticle);
         // repaints
         thePanel.moveParticle(oldX,oldY,diffuser.getX(),diffuser.getY(),diffuser.getRadius());
         try {
@@ -223,7 +221,7 @@ public class DLA {
   private double adjustDistance(double distance) {
     distance = distance - 2 * particleRadius;
     if (animationType == AnimationType.DIFFUSE_SLOW) {
-      distance = Math.min(distance, minDistance);
+      distance = Math.min(distance, maxDistance);
     }
     return distance;
   }
@@ -245,13 +243,6 @@ public class DLA {
    */
   private Particle closestToDiffuser() {
     return data.nearestNeighbor(diffuser);
-    // PointDistancePair cpdp = qt.closestPointDistancePair(diffuser);
-
-    // if (cpdp.getDistance() < 2 * particleRadius) {
-    //   //TODO: why is this happening when I use small particle radius? 
-    //   System.out.println("NOT A REAL EMPTYSTACK I JUST DONT KNOW HOW EXCEPTIONS WORK");
-    //   throw new EmptyStackException();
-    // }
   }
 
 
@@ -328,9 +319,9 @@ public class DLA {
   // }
   //
 
-  private void outputAggregate() { 
+  public void outputAggregateCSV(String filename) { 
     try {
-    BufferedWriter br = new BufferedWriter(new FileWriter("DLA/data/aggregate.csv"));
+    BufferedWriter br = new BufferedWriter(new FileWriter(filename));
     StringBuilder sb = new StringBuilder();
     for (Particle particle: particleList) {
      sb.append(particle.getX());
@@ -346,9 +337,9 @@ public class DLA {
     }
   }
 
-  private void outputTimings() {
+  public void outputTimingsCSV(String filename) {
     try {
-      BufferedWriter br = new BufferedWriter(new FileWriter("DLA/data/timingData.csv"));
+      BufferedWriter br = new BufferedWriter(new FileWriter(filename));
       StringBuilder sb = new StringBuilder();
       sb.append("particleNumber, diffuseTime(ns), jumpCalls, attachTime(ns)\n");
       for (int i = 0; i < nParticles; i++) {

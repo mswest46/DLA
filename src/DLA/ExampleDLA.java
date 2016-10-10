@@ -26,7 +26,7 @@ public class ExampleDLA {
     }
     animationOptions.setType(type);
 
-    System.out.println("Pause between animation steps");
+    System.out.println("Pause between animation steps in ms.");
     animationOptions.setPause(reader.nextInt());
 
     return animationOptions;
@@ -48,11 +48,11 @@ public class ExampleDLA {
     return new StorageOptions(type);
   }
   public static AggregateOptions inputAggregateOptions(){
-    System.out.println("Particle radius: ");
+    System.out.println("Particle radius (5 is good): ");
     double rad = reader.nextDouble();
 
     System.out.println("radius: " + rad);
-    System.out.println("number of particles in simulation:");
+    System.out.println("number of particles in simulation (1000 is good): ");
     int num = reader.nextInt();
     System.out.println("number: " + num);
 

@@ -33,10 +33,9 @@ public class DLA {
   private Particle diffuser; // the diffusing particle
 
   // animation stuff. why should any of these be static?
-  private static AnimationType animationType;
-  private static double maxDistance;
-  private static MyPanel thePanel; // where we animate. 
-  private static int PAUSE_TIME; // pause in ms between particle jumps. 
+  private AnimationType animationType;
+  private double maxDistance;
+  private Animation animation; // where we animate. 
   
   // data tree stuff.
   private StorageType storageType;
@@ -54,19 +53,15 @@ public class DLA {
     this.nParticles = aggregateOptions.nParticles;
     this.particleRadius = aggregateOptions.particleRadius;
     this.snapDistance = particleRadius/1000;
-
-    DLA.animationType = animationOptions.type;
-    DLA.maxDistance = animationOptions.maxDistance;
-    DLA.PAUSE_TIME = animationOptions.pause;
-
-
-    initialize(storageOptions);
+    this.maxDistance = animationOptions.maxDistance;
+    initialize(storageOptions, animationOptions);
     
     System.out.println("Creating DLA aggregate with " + nParticles + " particles.");
+
     simulate();
   }
 
-  public void initialize(StorageOptions storageOptions) {
+  public void initialize(StorageOptions storageOptions, AnimationOptions animationOptions) {
     this.data = new DataStorage(storageOptions, nParticles);
 
     // TODO: add seed input functionality. i.e. caller sets the seed. 
@@ -76,10 +71,8 @@ public class DLA {
     particleList.add(seed);
     aggregateRadius = 0;
 
-    if (animationType != AnimationType.NONE) { 
-      createAndShowGUI();
-      thePanel.updateParticleList(particleList);
-    }
+    setUpAnimation(animationOptions);
+    animation.updateParticleList(particleList);
 
     // TODO: just for debugs, get rid of eventually.
     rgen.setSeed(3);
@@ -94,11 +87,11 @@ public class DLA {
   /*
    * sets up the Swing stuff for animations.
    */
-  private static void createAndShowGUI(){
+  private void setUpAnimation(AnimationOptions animationOptions){
         JFrame f = new JFrame("DLA");
         f.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE); 
-        thePanel = new MyPanel(animationType);
-        f.add(thePanel);
+        animation = new Animation(animationOptions);
+        f.add(animation);
         f.pack();
         f.setLocationRelativeTo(null);
         f.setVisible(true);
@@ -111,15 +104,18 @@ public class DLA {
     long startTime = System.nanoTime();
     for (int i = 0; i < nParticles; i++) {
 
-      System.out.println("here");
       introduceDiffuser();
+
       long diffuseStartTime = System.nanoTime();
       Particle sticker = diffuseUntilHit();
+
       diffuseTimes[particleNumber] = System.nanoTime() - diffuseStartTime;
       long attachStartTime = System.nanoTime();
-      System.out.println("there");
+
       attach(diffuser, sticker);
+
       attachTimes[particleNumber] = System.nanoTime() - attachStartTime;
+
       System.out.print("Particle number " + particleNumber + " attached.\n");
       particleNumber++;
     }
@@ -128,17 +124,7 @@ public class DLA {
     double simulationTime = (double) (System.nanoTime() - startTime) / (60 * Math.pow(10, 9));
     System.out.println("simulation lasted " + simulationTime + " minutes" );
 
-
-    if (animationType != AnimationType.NONE) {
-      try {
-        Thread.sleep(PAUSE_TIME);
-      } catch (Exception e) {
-        System.out.print(e);
-      }
-      thePanel.updateParticleList(particleList);
-      thePanel.finalPaint();
-    }
-
+    animation.finalPaint();
   }
   
 
@@ -150,10 +136,7 @@ public class DLA {
     double R = aggregateRadius + 2 * particleRadius; // close as possible without risking overlap 
     double angle = rgen.nextDouble(0,2*Math.PI);
     diffuser = new Particle(R * Math.cos(angle), R * Math.sin(angle), particleRadius);
-    boolean animateDiffuser = (animationType == AnimationType.DIFFUSE_FAST || animationType == AnimationType.DIFFUSE_SLOW);
-    if (animateDiffuser) {
-      thePanel.setDiffuser(diffuser);
-    }
+    animation.updateDiffuser(diffuser);
   }
 
   /*
@@ -165,11 +148,9 @@ public class DLA {
     
     // get the closest particle in aggregate. 
     Particle closestParticle = closestToDiffuser();
-    boolean animateDiffuser = (animationType == AnimationType.DIFFUSE_FAST || animationType == AnimationType.DIFFUSE_SLOW);
 
-    if (animateDiffuser) {
-      thePanel.setNearestParticle(closestParticle);
-    }
+    animation.updateNearestParticle(closestParticle);
+
     // shrink the distance, accoutngin for particle radii. 
     double distance = adjustDistance(diffuser.distanceTo(closestParticle));
 
@@ -177,12 +158,6 @@ public class DLA {
     while (true) { 
       // make the diffuser jump the distance at a random angle. 
       jumpCalls[particleNumber]++;
-      System.out.println("here");
-
-      // for animation.
-      double oldX = diffuser.getX();
-      double oldY = diffuser.getY();
-
 
       makeJump(distance);
 
@@ -193,18 +168,10 @@ public class DLA {
       }
 
       closestParticle = closestToDiffuser();
-      if (animateDiffuser) {
-        // diffuser is know already. 
-        // set the nearest node. 
-        thePanel.setNearestParticle(closestParticle);
-        // repaints
-        thePanel.moveParticle(oldX,oldY,diffuser.getX(),diffuser.getY(),diffuser.getRadius());
-        try {
-          Thread.sleep(PAUSE_TIME);
-        } catch (Exception e) {
-          System.out.print(e);
-        }
-      }
+
+      animation.updateNearestParticle(closestParticle);
+      animation.paintDiffusion();
+
       distance = adjustDistance(diffuser.distanceTo(closestParticle));
 
       // if we hit the aggregate, break
@@ -219,11 +186,7 @@ public class DLA {
    * TODO: assuming for now that particles have the same radius. Not sure I always will. 
    */
   private double adjustDistance(double distance) {
-    distance = distance - 2 * particleRadius;
-    if (animationType == AnimationType.DIFFUSE_SLOW) {
-      distance = Math.min(distance, maxDistance);
-    }
-    return distance;
+    return Math.min(distance - 2 * particleRadius, maxDistance);
   }
 
   /*
@@ -255,31 +218,20 @@ public class DLA {
     //snapTo(diffuser, sticker);
     sticker.addNeighbor(diffuser);
     diffuser.addNeighbor(sticker);
-    boolean animateAttacher = (animationType == AnimationType.DIFFUSE_SLOW 
-        || animationType == AnimationType.DIFFUSE_FAST
-        || animationType == AnimationType.ATTACH);
-    // why? lets the diffusing animation finish? and then goes about attaching? 
-    if (animateAttacher) {
-      try {
-        Thread.sleep(PAUSE_TIME);
-      } catch (Exception e) {
-        System.out.print(e);
-      }
-    }
+
     particleList.add(diffuser);
-    // qt.insert(diffuser);
     data.addParticle(diffuser);
-    if (animateAttacher) {
-      thePanel.updateParticleList(particleList);
-    }
-    if (animationType == AnimationType.ATTACH) {
-      thePanel.finalPaint();
-    }
 
     // update aggregate radius if it has grown. 
     if (diffuser.distanceFromOrigin() > aggregateRadius) {
       aggregateRadius = diffuser.distanceFromOrigin();
     }
+
+    animation.updateParticleList(particleList);
+    animation.paintAggregate();
+
+
+
   }
 
   /*
